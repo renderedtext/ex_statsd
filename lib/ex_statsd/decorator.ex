@@ -12,9 +12,11 @@ defmodule ExStatsD.Decorator do
     arg_length = length(args_ast)
     quote do
       @ex_statsd_metric metric_name(__MODULE__, unquote(fun_name), unquote(arg_length))
+      @ex_statsd_metric_call_count @ex_statsd_metric <> ".call_count"
       @ex_statsd_options metric_options(__MODULE__, unquote(fun_name), unquote(arg_length))
       @ex_statsd_timing_function use_histogram(__MODULE__)
       def unquote(head) do
+        ExStatsD.increment(@ex_statsd_metric_call_count)
         result = Kernel.apply(ExStatsD, @ex_statsd_timing_function, [@ex_statsd_metric, fn ->
           unquote(body[:do])
         end, @ex_statsd_options])

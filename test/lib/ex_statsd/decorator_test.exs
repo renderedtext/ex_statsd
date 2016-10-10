@@ -57,13 +57,13 @@ defmodule ExStatsD.DecoratorTest do
 
   test "basic wrapper with defaults" do
     assert DecoratedModule.simple === :simple
-    expected = [@prefix<>"simple_0:1.234|ms"]
+    expected = [@prefix<>"simple_0:1.234|ms", call_count(@prefix<>"simple_0")]
     assert sent == expected
   end
 
   test "custom metric name" do
     assert DecoratedModule.custom_name === :custom_name
-    expected = ["test.custom_key:1.234|ms"]
+    expected = ["test.custom_key:1.234|ms", call_count("test.custom_key")]
     assert sent == expected
   end
 
@@ -72,9 +72,16 @@ defmodule ExStatsD.DecoratorTest do
     assert DecoratedModule.custom_name_gone === :custom_name_gone
     expected = [
       @prefix<>"custom_name_gone_0:1.234|ms",
-      "test.custom_key:1.234|ms"
+      call_count(@prefix<>"custom_name_gone_0"),
+      "test.custom_key:1.234|ms",
+      call_count("test.custom_key")
     ]
     assert sent == expected
+  end
+
+  defp call_count(bucket) do
+    # (String.split(bucket, ":") |> Enum.at(0)) <> ".call_count:1|c"
+    bucket <> ".call_count:1|c"
   end
 
   test "custom metric name falling to next in match unless changed" do
@@ -82,9 +89,9 @@ defmodule ExStatsD.DecoratorTest do
     assert DecoratedModule.multi(1) === 1
     assert DecoratedModule.multi(2) === 2
     expected = [
-      "test.multi_other:1.234|ms",
-      "test.multi_0_or_1:1.234|ms",
-      "test.multi_0_or_1:1.234|ms"
+      "test.multi_other:1.234|ms", call_count("test.multi_other"),
+      "test.multi_0_or_1:1.234|ms", call_count("test.multi_0_or_1"),
+      "test.multi_0_or_1:1.234|ms", call_count("test.multi_0_or_1"),
     ]
     assert sent == expected
   end
@@ -93,8 +100,8 @@ defmodule ExStatsD.DecoratorTest do
     assert DecoratedModule.with_options === :with_options
     assert DecoratedModule.options_gone === :options_gone
     expected = [
-      @prefix<>"options_gone_0:1.234|ms",
-      @prefix<>"with_options_0:1.234|ms|#mytag"
+      @prefix<>"options_gone_0:1.234|ms", call_count(@prefix<>"options_gone_0"),
+      @prefix<>"with_options_0:1.234|ms|#mytag", call_count(@prefix<>"with_options_0")
     ]
     assert sent == expected
   end
@@ -105,8 +112,11 @@ defmodule ExStatsD.DecoratorTest do
     assert DecoratedModule.multi_options(2) === 2
     expected = [
       @prefix<>"multi_options_1:1.234|ms|#options_get_changed",
+      call_count(@prefix<>"multi_options_1"),
       @prefix<>"multi_options_1:1.234|ms|#options_fall_through",
+      call_count(@prefix<>"multi_options_1"),
       @prefix<>"multi_options_1:1.234|ms|#options_fall_through",
+      call_count(@prefix<>"multi_options_1"),
     ]
     assert sent == expected
   end
@@ -115,8 +125,8 @@ defmodule ExStatsD.DecoratorTest do
     assert DecoratedModule.multi_attrs(1, 2) === {1, 2}
     assert DecoratedModule.multi_attrs(1, 2, 3) === {1, 2, 3}
     expected = [
-      @prefix<>"multi_attrs_3:1.234|h",
-      @prefix<>"multi_attrs_2:1.234|h"
+      @prefix<>"multi_attrs_3:1.234|h", call_count(@prefix<>"multi_attrs_3"),
+      @prefix<>"multi_attrs_2:1.234|h", call_count(@prefix<>"multi_attrs_2"),
     ]
     assert sent == expected
   end
@@ -126,7 +136,9 @@ defmodule ExStatsD.DecoratorTest do
     assert DecoratedModule.unbound_attr(:unbound) === :unbound_attr
     expected = [
       @prefix<>"unbound_attr_1:1.234|h|#mine",
-      @prefix<>"ignored_attr_1:1.234|h|#mine"
+      call_count(@prefix<>"unbound_attr_1"),
+      @prefix<>"ignored_attr_1:1.234|h|#mine",
+      call_count(@prefix<>"ignored_attr_1"),
     ]
     assert sent == expected
   end
